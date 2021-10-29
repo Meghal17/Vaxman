@@ -2,6 +2,7 @@
 #https://github.com/hbokmann/vaxman
   
 import pygame, sys, time
+import numpy as np
   
 black = (0,0,0)
 white = (255,255,255)
@@ -9,10 +10,15 @@ blue = (0,0,255)
 green = (0,255,0)
 red = (255,0,0)
 purple = (255,0,255)
-yellow   = ( 255, 255,   0)
+yellow   = ( 255, 255, 0)
 
-Trollicon=pygame.image.load('images/vaxman.png')
-pygame.display.set_icon(Trollicon)
+icon=pygame.image.load('images/vaxman.png')
+pygame.display.set_icon(icon)
+
+#Add music
+pygame.mixer.init()
+pygame.mixer.music.load('pacman.mp3')
+pygame.mixer.music.play(-1, 0.0)
 
 # This class represents the bar at the bottom that the player controls
 class Wall(pygame.sprite.Sprite):
@@ -218,10 +224,14 @@ class Ghost(Player):
       except IndexError:
          return [0,0]
 
-    def duplicate(self, monsta_group, loc):
-      image_path = 'images/' + str(self.name) + '.png'
-      new_ghost = Ghost(loc, image_path, self.name)
-      monsta_group.add(new_ghost)
+def duplicate(monsta_list, locs):
+  new_ghost_list = []
+  for ghost in monsta_list:
+    image_path = 'images/' + str(ghost.name) + '.png'
+    n = np.random.randint(1,18)
+    new_ghost = Ghost(locs[ghost.name], image_path, ghost.name)
+    new_ghost_list.append(new_ghost)
+  return new_ghost_list
 
 directions = {"pinky": [
 [0,-30,4],
@@ -328,10 +338,6 @@ directions = {"pinky": [
 }
 
 L = {"pinky":len(directions["pinky"])-1, "blinky":len(directions["blinky"])-1, "inky":len(directions["inky"])-1, "clyde":len(directions["clyde"])-1}
-# pl = len(directions["pinky"])-1
-# bl = len(directions["blinky"])-1
-# il = 
-# cl = len(directions["clyde"])-1
 
 # Call this function so the Pygame library can initialize itself
 pygame.init()
@@ -339,12 +345,8 @@ pygame.init()
 # Create an 606x606 sized screen
 screen = pygame.display.set_mode([606, 606])
 
-# This is a list of 'sprites.' Each block in the program is
-# added to this list. The list is managed by a class called 'RenderPlain.'
-
-
 # Set the title of the window
-pygame.display.set_caption('vaxman')
+pygame.display.set_caption('Vax-Man')
 
 # Create a surface we can draw on
 background = pygame.Surface(screen.get_size())
@@ -354,8 +356,6 @@ background = background.convert()
   
 # Fill the screen with a black background
 background.fill(black)
-
-buzzer = pygame.mixer.Sound('buzzer.mp3')
 
 clock = pygame.time.Clock()
 
@@ -379,10 +379,7 @@ def startGame():
 
   gate = setupGate(all_sprites_list)
 
-  buzzer = pygame.mixer.Sound('buzzer.mp3')
-
   turn_step = {"pinky":[0,0],"blinky":[0,0],"inky":[0,0],"clyde":[0,0]}
-
 
   # Create the player paddle object
   vaxman = Player( locations["vaxman"], "images/vaxman.png", "vaxman")
@@ -469,7 +466,12 @@ def startGame():
       # ALL GAME LOGIC SHOULD GO BELOW THIS COMMENT
       vaxman.update(wall_list,gate)
       for ghost in monsta_list:
-        ghost.turn, ghost.steps = ghost.changespeed(directions[ghost.name],ghost.name, ghost.turn, ghost.steps, L[ghost.name])
+        n = np.random.randint(4,25)
+        if n%2==0:
+          n=0
+        elif n%3==0:
+          n=4
+        ghost.turn, ghost.steps = ghost.changespeed(np.roll(directions[ghost.name],n,axis=0),ghost.name, ghost.turn, ghost.steps, L[ghost.name])
         ghost.changespeed(directions[ghost.name],ghost.name, ghost.turn, ghost.steps, L[ghost.name])
         ghost.update(wall_list, False)
 
@@ -478,14 +480,16 @@ def startGame():
       
       elapsed = round(time.time() - start, 1)
       c = 0
-      if elapsed % 30 == 0 and elapsed!=0:
-        for ghost in monsta_list:
-          ghost.duplicate(monsta_list, locations[ghost.name])
+      if elapsed % 5 == 0 and elapsed!=0:
+        new_ghosts = duplicate(monsta_list, locations)
+        for ghost in new_ghosts:
+          monsta_list.add(ghost)
       
-      # Check the list of collisions.
+      # Check the list of collisions
       if len(blocks_hit_list) > 0:
           score +=len(blocks_hit_list)
       
+      num_ghosts = len(monsta_list.sprites())
       # ALL GAME LOGIC SHOULD GO ABOVE THIS COMMENT
    
       # ALL CODE TO DRAW SHOULD GO BELOW THIS COMMENT
@@ -497,20 +501,26 @@ def startGame():
       monsta_list.draw(screen)
 
       text=font.render("Score: "+str(score)+"/"+str(bll), True, red)
+      ghosts = font.render("Ghosts:"+str(num_ghosts), True, red)
       screen.blit(text, [10, 10])
+      screen.blit(ghosts, [450, 10])
 
       if score == bll:
         doNext("Congratulations, you won!",145,all_sprites_list,block_list,monsta_list,vaxman_collide,wall_list,gate)
 
       monsta_hit_list = pygame.sprite.spritecollide(vaxman, monsta_list, True)
 
-      if len(monsta_list.sprites()) >= 120:
-        doNext("Game Over",235,all_sprites_list,block_list,monsta_list,vaxman_collide,wall_list,gate)
+      for hit_ghost in monsta_hit_list:
+        monsta_list.remove(hit_ghost)
+        all_sprites_list.remove(hit_ghost
+          )
+      if len(monsta_list.sprites()) >= 128:
+        doNext("Game Over!", 235,all_sprites_list,block_list,monsta_list,vaxman_collide,wall_list,gate)
 
       # ALL CODE TO DRAW SHOULD GO ABOVE THIS COMMENT
       
       pygame.display.flip()
-      print(len(monsta_list))
+      
       clock.tick(10)
 
 def doNext(message,left,all_sprites_list,block_list,monsta_list,vaxman_collide,wall_list,gate):
