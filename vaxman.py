@@ -480,7 +480,7 @@ def startGame():
       
       elapsed = round(time.time() - start, 1)
       c = 0
-      if elapsed % 5 == 0 and elapsed!=0:
+      if elapsed % 30 == 0 and elapsed!=0:
         new_ghosts = duplicate(monsta_list, locations)
         for ghost in new_ghosts:
           monsta_list.add(ghost)
